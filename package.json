@@ -1,0 +1,19 @@
+{
+  "name": "mqtt-listener",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "mqtt": "^5.14.1",
+    "pako": "^2.1.0",
+    "socket.io": "^4.8.1",
+    "zlib": "^1.0.5"
+  }
+}

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MQTT Event Viewer</title>
+
+    <!-- Socket.IO (served by Node) -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: #f6f6f6;
+      }
+
+      /* ================= HEADER ================= */
+      #header {
+        height: 50px;
+        background: #111;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        font-size: 14px;
+      }
+
+      #header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      /* ================= MAIN ================= */
+      #container {
+        display: flex;
+        height: calc(100vh - 50px);
+      }
+
+      /* ================= LIST ================= */
+      #list {
+        width: 35%;
+        background: #fff;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+      }
+
+      .item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+      }
+
+      .item:hover {
+        background: #f0f0f0;
+      }
+
+      .meta {
+        font-size: 11px;
+        color: #666;
+        margin-top: 3px;
+      }
+
+      .gzip {
+        background: #fde68a;
+        color: #92400e;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 10px;
+        margin-left: 5px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .left {
+        flex: 1;
+      }
+
+      .copy-btn {
+        font-size: 11px;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #e5e7eb;
+        white-space: nowrap;
+      }
+
+      .copy-btn:hover {
+        background: #d1d5db;
+      }
+
+      /* ================= VIEWER ================= */
+      #viewer {
+        flex: 1;
+        padding: 15px;
+        overflow: auto;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .placeholder {
+        color: #94a3b8;
+      }
+
+      .header-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #374151;
+        color: #fff;
+      }
+
+      .header-btn:hover {
+        background: #4b5563;
+      }
+
+      #header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- HEADER -->
+    <div id="header">
+      <div id="header-left">
+        <h2>📡 MQTT Event Viewer</h2>
+        <button id="clearBtn" class="header-btn">🧹 Clear</button>
+      </div>
+      <span id="count">Total Events: 0</span>
+    </div>
+
+    <!-- MAIN -->
+    <div id="container">
+      <div id="list"></div>
+      <div id="viewer">
+        <span class="placeholder">Select an event to view details</span>
+      </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script>
+      const socket = io();
+      const list = document.getElementById("list");
+      const viewer = document.getElementById("viewer");
+      const countEl = document.getElementById("count");
+      const clearBtn = document.getElementById("clearBtn");
+
+      let eventCount = 0;
+      let autoScroll = true;
+      let eventBuffer = [];
+
+      /* 🔊 Voice helper */
+      function speak(text) {
+        console.log("Speaking:", text);
+        if (!("speechSynthesis" in window)) {
+          console.log("No speechsynthesis");
+          return;
+        }
+
+        // stop previous speech to avoid overlap
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        window.speechSynthesis.speak(utterance);
+      }
+
+      /* Detect user scroll */
+      list.addEventListener("scroll", () => {
+        autoScroll =
+          list.scrollTop + list.clientHeight >= list.scrollHeight - 20;
+      });
+
+      /* Clear button logic */
+      clearBtn.onclick = () => {
+        list.innerHTML = "";
+        viewer.innerHTML =
+          '<span class="placeholder">Select an event to view details</span>';
+        eventBuffer.length = 0;
+        eventCount = 0;
+        countEl.textContent = "Total Events: 0";
+      };
+
+      socket.on("connect", () => {
+        console.log("UI connected to server");
+      });
+
+      /* Buffer incoming events */
+      socket.on("mqtt-event", (event) => {
+        eventBuffer.push(event);
+        // 🔊 Voice notification (short & clean)
+        const speakText =
+          event.parsed?.type.split("-").join(" ") || "unknown event";
+        console.log("Speak Text:", speakText);
+        // speak(speakText);
+        speak(" kya bukk rahay ho maadar-choud");
+      });
+
+      /* Flush buffer smoothly */
+      setInterval(() => {
+        if (eventBuffer.length === 0) return;
+
+        const fragment = document.createDocumentFragment();
+
+        while (eventBuffer.length) {
+          const event = eventBuffer.shift();
+          eventCount++;
+          countEl.textContent = `Total Events: ${eventCount}`;
+
+          const div = document.createElement("div");
+          div.className = "item";
+
+          div.innerHTML = `
+          <div class="row">
+            <div class="left">
+              <strong>${eventCount}) Type: ${
+            event.parsed?.type || "N/A"
+          }</strong>
+
+              <div class="meta">
+                <strong>Topic:</strong> ${event.topic}
+              </div>
+
+              <div class="meta">
+                ${new Date(event.time).toLocaleString()} · ${event.size} bytes
+                ${event.isCompressed ? '<span class="gzip">gzip</span>' : ""}
+              </div>
+            </div>
+
+            <button class="copy-btn">📋 Copy JSON</button>
+          </div>
+        `;
+
+          /* Click to view JSON */
+          div.onclick = (e) => {
+            if (e.target.classList.contains("copy-btn")) return;
+
+            viewer.innerHTML =
+              "<pre>" + JSON.stringify(event.parsed, null, 2) + "</pre>";
+          };
+
+          /* Copy JSON */
+          div.querySelector(".copy-btn").onclick = (e) => {
+            e.stopPropagation();
+            navigator.clipboard
+              .writeText(JSON.stringify(event.parsed, null, 2))
+              .then(() => {
+                e.target.textContent = "✅ Copied";
+                setTimeout(() => (e.target.textContent = "📋 Copy JSON"), 1200);
+              });
+          };
+
+          fragment.appendChild(div);
+        }
+
+        list.appendChild(fragment);
+
+        /* Auto-scroll only if user is at bottom */
+        if (autoScroll) {
+          list.scrollTop = list.scrollHeight;
+        }
+      }, 200); // smooth batch render
+    </script>
+  </body>
+</html>
