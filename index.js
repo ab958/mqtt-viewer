@@ -20,42 +20,49 @@ function deepLog(label, data) {
 
 // ===== UI WebSocket Server =====
 const httpServer = http.createServer((req, res) => {
+  // Serve index.html
   if (req.url === "/") {
+    res.writeHead(200, { "Content-Type": "text/html" });
     fs.createReadStream(path.join(__dirname, "index.html")).pipe(res);
+  } 
+  // Serve ticket-utils.js
+  else if (req.url === "/ticket-utils.js") {
+    res.writeHead(200, { "Content-Type": "application/javascript" });
+    fs.createReadStream(path.join(__dirname, "ticket-utils.js")).pipe(res);
+  }
+  // 404 for other requests
+  else {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not Found");
   }
 });
+
 const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
 
-httpServer.listen(3001, () => {
-  console.log("✓ UI WebSocket running on http://localhost:3001\n");
+httpServer.listen(3011, () => {
+  console.log("✓ UI WebSocket running on http://localhost:3011\n");
 });
 
 // MQTT Broker Configuration with TLS/SSL
 const config = {
-  host: "a1oc44fddprphm-ats.iot.us-west-2.amazonaws.com", // MQTT broker hostname or IP
-  port: 8883, // Standard MQTT TLS port
-  protocol: "mqtts", // Use 'mqtts' for secure connection
+  host: "a1oc44fddprphm-ats.iot.us-west-2.amazonaws.com",
+  port: 8883,
+  protocol: "mqtts",
   clientId: `mqtt_logger_${Math.random().toString(16).slice(3)}`,
-  topics: ["uatv2/restaurant/7096"], /// "uatv2/restaurant/6271" <----- ahmed tenant ["#"], // Subscribe to all topics
-  // "uatv2/restaurant/7096"  Ahmed tenant
+  topics: ["uatv2/restaurant/7096"],
+   // "uatv2/restaurant/7096"  Ahmed tenant
   //  "uatv2/restaurant/6271" zeejah tenant
   //  uatv2/restaurant/5182 usama tenant
 
-  // TLS Certificate paths
   certificates: {
-    ca: "./certs/aio_root_ca.crt", // Certificate Authority
-    cert: "./certs/aio_private_cert.pem", // Client Certificate
-    key: "./certs/aio_private_key.key", // Client Private Key
+    ca: "./certs/aio_root_ca.crt",
+    cert: "./certs/aio_private_cert.pem",
+    key: "./certs/aio_private_key.key",
   },
 
-  // Authentication (if needed in addition to certificates)
-  //   username: "",
-  //   password: "",
-
-  // TLS Options
-  rejectUnauthorized: true, // Set to false to accept self-signed certificates
+  rejectUnauthorized: true,
 };
 
 // Read certificate files
@@ -120,34 +127,24 @@ client.on("connect", () => {
 
 // Message received event
 client.on("message", (topic, message) => {
-  //   console.log(message);
-  //   const rawMessage = message.toString("utf8");
   const isGzip =
     message.length >= 2 && message[0] === 0x1f && message[1] === 0x8b;
 
   let jsonString;
 
   if (isGzip) {
-    // ✅ compressed
     jsonString = zlib.gunzipSync(message).toString("utf8");
   } else {
-    // ✅ plain JSON
     jsonString = message.toString("utf8");
   }
 
   const data = JSON.parse(jsonString);
-  //   console.log("Parsed data:", data);
 
   console.log("─────────────────────────────────");
   console.log(`📨 Message Received`);
   console.log(`Topic: ${topic}`);
-  //   console.log(`Message: ${message.toString()}`);
   console.log(`Time: ${new Date().toISOString()}`);
   console.log(`Size: ${message.length} bytes`);
-  console.log("─────────────────────────────────\n");
-  // deepLog("Parsed data:", data);
-  // console.log("Stringfy data: ", jsonString);
-
   console.log("─────────────────────────────────\n");
 
   io.emit("mqtt-event", {

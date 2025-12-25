@@ -6,6 +6,9 @@
 
     <!-- Socket.IO (served by Node) -->
     <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Import ticket utilities -->
+    <script src="ticket-utils.js"></script>
 
     <style>
       * {
@@ -54,13 +57,13 @@
       }
 
       .item {
-        padding: 10px;
+        padding: 0;
         border-bottom: 1px solid #eee;
         cursor: pointer;
       }
 
-      .item:hover {
-        background: #f0f0f0;
+      .item:hover .row {
+        filter: brightness(0.95);
       }
 
       .meta {
@@ -83,6 +86,8 @@
         justify-content: space-between;
         align-items: center;
         gap: 10px;
+        padding: 10px;
+        transition: filter 0.2s ease;
       }
 
       .left {
@@ -176,25 +181,6 @@
       let autoScroll = true;
       let eventBuffer = [];
 
-      /* 🔊 Voice helper */
-      function speak(text) {
-        console.log("Speaking:", text);
-        if (!("speechSynthesis" in window)) {
-          console.log("No speechsynthesis");
-          return;
-        }
-
-        // stop previous speech to avoid overlap
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-
-        window.speechSynthesis.speak(utterance);
-      }
-
       /* Detect user scroll */
       list.addEventListener("scroll", () => {
         autoScroll =
@@ -218,12 +204,6 @@
       /* Buffer incoming events */
       socket.on("mqtt-event", (event) => {
         eventBuffer.push(event);
-        // 🔊 Voice notification (short & clean)
-        const speakText =
-          event.parsed?.type.split("-").join(" ") || "unknown event";
-        console.log("Speak Text:", speakText);
-        // speak(speakText);
-        speak(" kya bukk rahay ho maadar-choud");
       });
 
       /* Flush buffer smoothly */
@@ -237,15 +217,22 @@
           eventCount++;
           countEl.textContent = `Total Events: ${eventCount}`;
 
+          // ✨ USE IMPORTED FUNCTIONS
+          const ticketId = findTicketId(event.parsed);
+          const bgColor = getTicketColor(ticketId);
+
           const div = document.createElement("div");
           div.className = "item";
 
+          // ✨ DISPLAY TICKET ID
+          const ticketDisplay = ticketId !== null ? ` (Ticket: ${ticketId})` : '';
+
           div.innerHTML = `
-          <div class="row">
+          <div class="row" style="background: ${bgColor}; border-left: 5px solid ${bgColor};">
             <div class="left">
               <strong>${eventCount}) Type: ${
             event.parsed?.type || "N/A"
-          }</strong>
+          }${ticketDisplay}</strong>
 
               <div class="meta">
                 <strong>Topic:</strong> ${event.topic}
