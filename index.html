@@ -6,7 +6,7 @@
 
     <!-- Socket.IO (served by Node) -->
     <script src="/socket.io/socket.io.js"></script>
-    
+
     <!-- Import ticket utilities -->
     <script src="ticket-utils.js"></script>
 
@@ -94,7 +94,7 @@
         flex: 1;
       }
 
-      .copy-btn {
+      .copy-btn .republish-btn {
         font-size: 11px;
         padding: 6px 10px;
         border: none;
@@ -225,7 +225,8 @@
           div.className = "item";
 
           // ✨ DISPLAY TICKET ID
-          const ticketDisplay = ticketId !== null ? ` (Ticket: ${ticketId})` : '';
+          const ticketDisplay =
+            ticketId !== null ? ` (Ticket: ${ticketId})` : "";
 
           div.innerHTML = `
           <div class="row" style="background: ${bgColor}; border-left: 5px solid ${bgColor};">
@@ -244,9 +245,38 @@
               </div>
             </div>
 
+            <button class="republish-btn">🔁 Republish</button>
             <button class="copy-btn">📋 Copy JSON</button>
           </div>
         `;
+
+          const republishBtn = div.querySelector(".republish-btn");
+
+          republishBtn.onclick = (e) => {
+            console.log("Republish clicked", e);
+            e.stopPropagation();
+
+            socket.emit("republish-mqtt", {
+              topic: event.topic,
+              payload: event.parsed,
+            });
+
+            // Listen ONCE for result
+            socket.once("republish-result", (res) => {
+              if (res.success) {
+                republishBtn.textContent = "✅ Done";
+              } else {
+                republishBtn.textContent = "❌ Failed";
+                console.error("Republish error:", res.error);
+              }
+
+              // Reset button after 1.5s
+              setTimeout(() => {
+                republishBtn.textContent = "🔁 Republish";
+                republishBtn.disabled = false;
+              }, 1500);
+            });
+          };
 
           /* Click to view JSON */
           div.onclick = (e) => {

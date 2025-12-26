@@ -158,6 +158,49 @@ client.on("message", (topic, message) => {
   });
 });
 
+io.on("connection", (socket) => {
+  console.log("🧩 UI connected for republish");
+
+  socket.on("republish-mqtt", ({ topic, payload }) => {
+    try {
+      if (!topic || !payload) {
+        socket.emit("republish-result", {
+          success: false,
+          error: "Invalid topic or payload",
+        });
+        return;
+      }
+
+      const message =
+        typeof payload === "string"
+          ? payload
+          : JSON.stringify(payload);
+
+      client.publish(topic, message, { qos: 0 }, (err) => {
+        if (err) {
+          console.error("❌ Republish failed:", err.message);
+          socket.emit("republish-result", {
+            success: false,
+            error: err.message,
+          });
+        } else {
+          console.log(`🔁 Republished to topic: ${topic}`);
+          socket.emit("republish-result", {
+            success: true,
+            topic,
+          });
+        }
+      });
+    } catch (e) {
+      socket.emit("republish-result", {
+        success: false,
+        error: e.message,
+      });
+    }
+  });
+});
+
+
 // Error event
 client.on("error", (err) => {
   console.error("=================================");
