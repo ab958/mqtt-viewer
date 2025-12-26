@@ -5,6 +5,7 @@ const zlib = require("zlib");
 const util = require("util");
 const http = require("http");
 const { Server } = require("socket.io");
+require("dotenv").config();
 
 function deepLog(label, data) {
   console.log(
@@ -24,7 +25,7 @@ const httpServer = http.createServer((req, res) => {
   if (req.url === "/") {
     res.writeHead(200, { "Content-Type": "text/html" });
     fs.createReadStream(path.join(__dirname, "index.html")).pipe(res);
-  } 
+  }
   // Serve ticket-utils.js
   else if (req.url === "/ticket-utils.js") {
     res.writeHead(200, { "Content-Type": "application/javascript" });
@@ -47,12 +48,12 @@ httpServer.listen(3011, () => {
 
 // MQTT Broker Configuration with TLS/SSL
 const config = {
-  host: "a1oc44fddprphm-ats.iot.us-west-2.amazonaws.com",
+  host: process.env.MQTT_HOST,
   port: 8883,
   protocol: "mqtts",
   clientId: `mqtt_logger_${Math.random().toString(16).slice(3)}`,
   topics: ["uatv2/restaurant/7096"],
-   // "uatv2/restaurant/7096"  Ahmed tenant
+  // "uatv2/restaurant/7096"  Ahmed tenant
   //  "uatv2/restaurant/6271" zeejah tenant
   //  uatv2/restaurant/5182 usama tenant
 
@@ -172,9 +173,7 @@ io.on("connection", (socket) => {
       }
 
       const message =
-        typeof payload === "string"
-          ? payload
-          : JSON.stringify(payload);
+        typeof payload === "string" ? payload : JSON.stringify(payload);
 
       client.publish(topic, message, { qos: 0 }, (err) => {
         if (err) {
@@ -199,7 +198,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
 
 // Error event
 client.on("error", (err) => {
